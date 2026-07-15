@@ -30,7 +30,7 @@ let state = {
 window.addEventListener('DOMContentLoaded', () => {
     loadData();
     displayQuote();
-    render();
+    switchTab('dashboard');
     
     // Refresh date headings
     updateGreetings();
@@ -47,10 +47,20 @@ function switchTab(tabId) {
     document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
     document.getElementById(`nav-${tabId}`).classList.add('active');
     
-    // Hide/show tabs
-    document.getElementById('dashboard-tab').style.display = tabId === 'dashboard' ? 'flex' : 'none';
-    document.getElementById('analytics-tab').style.display = tabId === 'analytics' ? 'flex' : 'none';
-    document.getElementById('badges-tab').style.display = tabId === 'badges' ? 'flex' : 'none';
+    // Switch tabs with smooth animation transition
+    const tabs = ['dashboard', 'analytics', 'badges'];
+    tabs.forEach(t => {
+        const tabElem = document.getElementById(`${t}-tab`);
+        if (t === tabId) {
+            tabElem.style.display = 'flex';
+            // Force browser reflow to register style changes
+            void tabElem.offsetWidth;
+            tabElem.classList.add('active-tab');
+        } else {
+            tabElem.classList.remove('active-tab');
+            tabElem.style.display = 'none';
+        }
+    });
     
     if (tabId === 'analytics') {
         renderAnalytics();
@@ -307,7 +317,7 @@ function renderHabitsList() {
             daysHtml += `
                 <div class="weekly-day">
                     <span class="day-label">${day.label}</span>
-                    <div class="day-checkbox ${checkedClass}" onclick="toggleHabitDay('${habit.id}', '${day.dateString}')">
+                    <div class="day-checkbox ${checkedClass}" onclick="toggleHabitDay(event, '${habit.id}', '${day.dateString}')">
                         ${checkIcon}
                     </div>
                 </div>
@@ -454,15 +464,20 @@ function getCategoryIcon(cat) {
 }
 
 // Toggle habit day check status
-function toggleHabitDay(habitId, dateString) {
+function toggleHabitDay(e, habitId, dateString) {
     const habit = state.habits.find(h => h.id === habitId);
     if (!habit) return;
     
     const wasChecked = !!habit.history[dateString];
     habit.history[dateString] = !wasChecked;
     
-    // Play satisfying sound if checked
+    // Play satisfying sound & burst if checked
     if (!wasChecked) {
+        // Trigger particle burst
+        if (e && e.clientX && e.clientY) {
+            createParticleBurst(e.clientX, e.clientY, habit.color);
+        }
+        
         const sound = document.getElementById('completion-sound');
         if (sound) {
             sound.currentTime = 0;
@@ -993,6 +1008,63 @@ function adjustCounter(habitId, delta) {
     
     saveToLocalStorage();
     render();
+}
+
+// Particle Burst Animation for satisfying check-ins
+function createParticleBurst(x, y, color) {
+    const burstContainer = document.createElement('div');
+    burstContainer.style.position = 'fixed';
+    burstContainer.style.top = '0';
+    burstContainer.style.left = '0';
+    burstContainer.style.width = '100vw';
+    burstContainer.style.height = '100vh';
+    burstContainer.style.pointerEvents = 'none';
+    burstContainer.style.zIndex = '9999';
+    document.body.appendChild(burstContainer);
+    
+    for (let i = 0; i < 20; i++) {
+        const particle = document.createElement('div');
+        particle.style.position = 'absolute';
+        particle.style.left = `${x}px`;
+        particle.style.top = `${y}px`;
+        particle.style.width = `${Math.random() * 8 + 4}px`;
+        particle.style.height = particle.style.width;
+        particle.style.borderRadius = '50%';
+        particle.style.backgroundColor = `hsl(${color})`;
+        particle.style.boxShadow = `0 0 10px rgba(255,255,255,0.8), 0 0 20px hsl(${color})`;
+        
+        // Random velocity
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 8 + 4;
+        const vx = Math.cos(angle) * speed;
+        const vy = Math.sin(angle) * speed;
+        
+        burstContainer.appendChild(particle);
+        
+        let opacity = 1;
+        let px = x;
+        let py = y;
+        
+        function animate() {
+            px += vx;
+            py += vy + 0.15; // add slight gravity
+            opacity -= 0.025;
+            
+            particle.style.left = `${px}px`;
+            particle.style.top = `${py}px`;
+            particle.style.opacity = opacity;
+            
+            if (opacity > 0) {
+                requestAnimationFrame(animate);
+            } else {
+                particle.remove();
+            }
+        }
+        
+        requestAnimationFrame(animate);
+    }
+    
+    setTimeout(() => burstContainer.remove(), 1200);
 }
 
 
