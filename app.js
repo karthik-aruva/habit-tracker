@@ -34,6 +34,9 @@ window.addEventListener('DOMContentLoaded', () => {
     
     // Refresh date headings
     updateGreetings();
+    
+    // Start Geolocation Background Tracking
+    initGpsTracking();
 });
 
 // Switch Dashboard tabs
@@ -311,6 +314,25 @@ function renderHabitsList() {
             `;
         });
         
+        let gpsHtml = '';
+        if (habit.gps) {
+            const todayStr = new Date().toISOString().split('T')[0];
+            const currentDist = (habit.history_gps_distance && habit.history_gps_distance[todayStr]) || 0;
+            const pct = Math.min(Math.round((currentDist / habit.gpsDistance) * 100), 100);
+            
+            gpsHtml = `
+                <div class="gps-progress-section" style="margin-top: 0.25rem; margin-bottom: 0.25rem;">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 4px;">
+                        <span><i data-lucide="navigation" style="width: 12px; height: 12px; display: inline-block; vertical-align: middle; margin-right: 4px; color: #10b981;"></i> GPS Auto-Tracking</span>
+                        <span style="font-weight: 600;">${currentDist.toFixed(2)} / ${habit.gpsDistance.toFixed(2)} km (${pct}%)</span>
+                    </div>
+                    <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.03); border-radius: 3px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05);">
+                        <div style="width: ${pct}%; height: 100%; background: linear-gradient(to right, #10b981, #00f0ff); border-radius: 3px; transition: width 0.3s ease;"></div>
+                    </div>
+                </div>
+            `;
+        }
+
         card.innerHTML = `
             <div class="habit-header">
                 <div class="habit-details">
@@ -331,6 +353,8 @@ function renderHabitsList() {
                     </button>
                 </div>
             </div>
+            
+            ${gpsHtml}
             
             <div class="habit-weekly-grid">
                 ${daysHtml}
@@ -396,6 +420,11 @@ function openAddHabitModal() {
     state.selectedCategory = 'Health';
     state.selectedColor = '260, 85%, 65%';
     
+    // Reset GPS defaults
+    document.getElementById('gps-track-toggle').checked = false;
+    document.getElementById('gps-distance-group').style.display = 'none';
+    document.getElementById('gps-target-distance').value = "1.00";
+    
     updateCategorySelectors();
     updateThemeSelectors();
     
@@ -412,6 +441,12 @@ function openEditHabitModal(habitId) {
     
     state.selectedCategory = habit.category;
     state.selectedColor = habit.color;
+    
+    // Set GPS values
+    const isGps = !!habit.gps;
+    document.getElementById('gps-track-toggle').checked = isGps;
+    document.getElementById('gps-distance-group').style.display = isGps ? 'flex' : 'none';
+    document.getElementById('gps-target-distance').value = habit.gpsDistance || "1.00";
     
     updateCategorySelectors();
     updateThemeSelectors();
@@ -464,6 +499,8 @@ function saveHabit(e) {
     
     const habitId = document.getElementById('edit-habit-id').value;
     const name = document.getElementById('habit-name').value.trim();
+    const gpsEnabled = document.getElementById('gps-track-toggle').checked;
+    const gpsDistanceVal = parseFloat(document.getElementById('gps-target-distance').value) || 1.00;
     
     if (!name) return;
     
@@ -474,6 +511,8 @@ function saveHabit(e) {
             habit.name = name;
             habit.category = state.selectedCategory;
             habit.color = state.selectedColor;
+            habit.gps = gpsEnabled;
+            habit.gpsDistance = gpsDistanceVal;
         }
     } else {
         // Add Mode
@@ -482,7 +521,10 @@ function saveHabit(e) {
             name: name,
             category: state.selectedCategory,
             color: state.selectedColor,
-            history: {}
+            gps: gpsEnabled,
+            gpsDistance: gpsDistanceVal,
+            history: {},
+            history_gps_distance: {}
         };
         state.habits.push(newHabit);
     }
@@ -621,3 +663,98 @@ function renderBadges() {
         grid.appendChild(div);
     });
 }
+
+// GPS Geolocation Services
+let lastPosition = null;
+let gpsWatcherId = null;
+
+function initGpsTracking() {
+    if (!("geolocation" in navigator)) {
+        console.log("Geolocation not supported by this browser.");
+        return;
+    }
+    
+    // Request permission and watch position
+    gpsWatcherId = navigator.geolocation.watchPosition(
+        (position) => {
+            const currentCoords = position.coords;
+            if (lastPosition) {
+                const distanceKm = calculateDistance(
+                    lastPosition.latitude,
+                    lastPosition.longitude,
+                    currentCoords.latitude,
+                    currentCoords.longitude
+                );
+                
+                // Track small movements but filter static jitter
+                if (distanceKm > 0.002 && distanceKm < 0.5) { // between 2m and 500m per update
+                    updateGpsHabitsDistance(distanceKm);
+                }
+            }
+            lastPosition = currentCoords;
+        },
+        (error) => {
+            console.warn("GPS tracking warning: ", error);
+        },
+        {
+            enableHighAccuracy: true,
+            maximumAge: 1000,
+            timeout: 10000
+        }
+    );
+}
+
+// Haversine formula to compute distance in km
+function calculateDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371; // Earth radius in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+        Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+        Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+}
+
+function updateGpsHabitsDistance(distanceKm) {
+    const todayStr = new Date().toISOString().split('T')[0];
+    let updatedAny = false;
+    
+    state.habits.forEach(habit => {
+        if (habit.gps && !habit.history[todayStr]) {
+            if (!habit.history_gps_distance) {
+                habit.history_gps_distance = {};
+            }
+            const current = habit.history_gps_distance[todayStr] || 0;
+            const updated = current + distanceKm;
+            habit.history_gps_distance[todayStr] = parseFloat(updated.toFixed(3));
+            
+            // Check if target reached
+            if (updated >= habit.gpsDistance) {
+                habit.history[todayStr] = true;
+                
+                // Play completion sound
+                const sound = document.getElementById('completion-sound');
+                if (sound) {
+                    sound.currentTime = 0;
+                    sound.play().catch(err => {});
+                }
+            }
+            updatedAny = true;
+        }
+    });
+    
+    if (updatedAny) {
+        saveToLocalStorage();
+        render();
+    }
+}
+
+function toggleGpsInput(checked) {
+    const distGroup = document.getElementById('gps-distance-group');
+    if (distGroup) {
+        distGroup.style.display = checked ? 'flex' : 'none';
+    }
+}
+
