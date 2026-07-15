@@ -347,34 +347,20 @@ function renderHabitsList() {
             `;
         } else if (type === 'sleep') {
             const progress = (habit.dailyProgress && habit.dailyProgress[todayStr]) || 0;
-            const isSleeping = !!habit.sleepStart;
-            
-            let sleepStatus = '';
-            let btnLabel = '';
-            let btnColor = '';
-            let iconName = '';
-            
-            if (isSleeping) {
-                sleepStatus = `<span style="color: #60a5fa; font-weight: 600; font-size: 0.8rem; animation: pulse 1.5s infinite;">Ticking: sleeping...</span>`;
-                btnLabel = 'Wake Up';
-                btnColor = 'rgba(239, 68, 68, 0.15)';
-                iconName = 'sun';
-            } else {
-                sleepStatus = `<span style="font-size: 0.8rem; color: var(--text-secondary);">Logged Today: <strong>${progress}h</strong> / ${target}h</span>`;
-                btnLabel = 'Start Sleep';
-                btnColor = 'rgba(139, 92, 246, 0.15)';
-                iconName = 'moon';
-            }
+            const pct = Math.min(Math.round((progress / target) * 100), 100);
             
             trackerWidgetHtml = `
-                <div class="tracker-widget" style="margin-top: 0.25rem; margin-bottom: 0.25rem; display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.02); padding: 0.75rem; border-radius: 10px; border: 1px solid rgba(255,255,255,0.04);">
-                    <div style="display: flex; flex-direction: column; gap: 2px;">
-                        <span style="font-size: 0.75rem; color: var(--text-muted); display: flex; align-items: center; gap: 4px;"><i data-lucide="moon" style="width: 12px;"></i> Sleep Monitor</span>
-                        ${sleepStatus}
+                <div class="tracker-widget" style="margin-top: 0.25rem; margin-bottom: 0.25rem; background: rgba(255,255,255,0.02); padding: 0.75rem; border-radius: 10px; border: 1px solid rgba(255,255,255,0.04);">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 6px;">
+                        <span><i data-lucide="moon" style="width: 12px; height: 12px; display: inline-block; vertical-align: middle; margin-right: 4px; color: #a78bfa;"></i> Auto Sleep Monitor</span>
+                        <span style="font-weight: 600;">${progress} / ${target} hours (${pct}%)</span>
                     </div>
-                    <button class="btn" onclick="${isSleeping ? `stopSleep('${habit.id}')` : `startSleep('${habit.id}')`}" style="width: auto; padding: 0.5rem 1rem; font-size: 0.75rem; background: ${btnColor}; color: white; border: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; gap: 6px;">
-                        <i data-lucide="${iconName}" style="width: 14px; height: 14px;"></i> ${btnLabel}
-                    </button>
+                    <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.03); border-radius: 3px; overflow: hidden; margin-bottom: 6px;">
+                        <div style="width: ${pct}%; height: 100%; background: linear-gradient(to right, #a78bfa, #8b5cf6); border-radius: 3px; transition: width 0.3s ease;"></div>
+                    </div>
+                    <span style="font-size: 0.65rem; color: var(--text-muted); display: block; text-align: right; font-style: italic;">
+                        💤 Device inactivity & locked states automatically monitored (9 PM - 9 AM)
+                    </span>
                 </div>
             `;
         } else if (type === 'focus') {
@@ -845,7 +831,8 @@ function updateGpsHabitsDistance(distanceKm) {
     let updatedAny = false;
     
     state.habits.forEach(habit => {
-        if (habit.gps && !habit.history[todayStr]) {
+        const isGps = habit.trackingType === 'gps' || habit.gps;
+        if (isGps) {
             if (!habit.history_gps_distance) {
                 habit.history_gps_distance = {};
             }
@@ -853,8 +840,10 @@ function updateGpsHabitsDistance(distanceKm) {
             const updated = current + distanceKm;
             habit.history_gps_distance[todayStr] = parseFloat(updated.toFixed(3));
             
-            // Check if target reached
-            if (updated >= habit.gpsDistance) {
+            const target = habit.targetVal || habit.gpsDistance || 5.0;
+            
+            // Check if target reached for the first time
+            if (updated >= target && !habit.history[todayStr]) {
                 habit.history[todayStr] = true;
                 
                 // Play completion sound
@@ -1065,6 +1054,68 @@ function createParticleBurst(x, y, color) {
     }
     
     setTimeout(() => burstContainer.remove(), 1200);
+}
+
+// Automatic Inactivity Sleep Tracker
+let lastActiveTime = localStorage.getItem('last_active_time') ? parseInt(localStorage.getItem('last_active_time')) : Date.now();
+
+function updateActiveTime() {
+    const now = Date.now();
+    const gapMs = now - lastActiveTime;
+    
+    // If gap is significant (e.g. > 15 minutes / 900,000ms)
+    // AND it happened during night hours (21:00 / 9 PM to 09:00 / 9 AM)
+    if (gapMs > 15 * 60 * 1000) {
+        const lastDate = new Date(lastActiveTime);
+        const lastHour = lastDate.getHours();
+        
+        if (lastHour >= 21 || lastHour < 9) {
+            const gapHours = parseFloat((gapMs / (1000 * 60 * 60)).toFixed(2));
+            accumulateAutomaticSleep(gapHours);
+        }
+    }
+    
+    lastActiveTime = now;
+    localStorage.setItem('last_active_time', now.toString());
+}
+
+// Listen to user interactions to measure inactivity gaps
+['mousemove', 'keydown', 'click', 'scroll', 'touchstart', 'visibilitychange'].forEach(evt => {
+    window.addEventListener(evt, () => {
+        if (document.visibilityState === 'visible') {
+            updateActiveTime();
+        }
+    });
+});
+
+function accumulateAutomaticSleep(hours) {
+    const todayStr = new Date().toISOString().split('T')[0];
+    let updatedAny = false;
+    
+    state.habits.forEach(habit => {
+        if (habit.trackingType === 'sleep') {
+            if (!habit.dailyProgress) habit.dailyProgress = {};
+            const current = habit.dailyProgress[todayStr] || 0;
+            const updated = parseFloat((current + hours).toFixed(2));
+            habit.dailyProgress[todayStr] = updated;
+            
+            const target = habit.targetVal || 8.0;
+            if (updated >= target && !habit.history[todayStr]) {
+                habit.history[todayStr] = true;
+                const sound = document.getElementById('completion-sound');
+                if (sound) {
+                    sound.currentTime = 0;
+                    sound.play().catch(() => {});
+                }
+            }
+            updatedAny = true;
+        }
+    });
+    
+    if (updatedAny) {
+        saveToLocalStorage();
+        render();
+    }
 }
 
 
