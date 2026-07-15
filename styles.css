@@ -7,22 +7,22 @@
 }
 
 :root {
-    --bg-gradient: linear-gradient(135deg, #0f0c20 0%, #15102a 50%, #06020f 100%);
-    --card-bg: rgba(255, 255, 255, 0.03);
-    --card-border: rgba(255, 255, 255, 0.06);
-    --card-hover-border: rgba(255, 255, 255, 0.15);
+    --bg-gradient: linear-gradient(135deg, #090d16 0%, #0d1321 50%, #05070c 100%);
+    --card-bg: rgba(255, 255, 255, 0.02);
+    --card-border: rgba(255, 255, 255, 0.05);
+    --card-hover-border: rgba(255, 255, 255, 0.12);
     
     --text-primary: #ffffff;
     --text-secondary: #94a3b8;
     --text-muted: #64748b;
     
-    --accent-purple: 260, 85%, 65%;
-    --accent-blue: 200, 95%, 55%;
-    --accent-green: 142, 70%, 50%;
-    --accent-orange: 24, 95%, 60%;
-    --accent-pink: 330, 85%, 60%;
+    --accent-purple: 217, 90%, 55%; /* Changed to primary blue */
+    --accent-blue: 190, 90%, 45%;   /* Changed to cyan */
+    --accent-green: 142, 70%, 45%;  /* Changed to bright green */
+    --accent-orange: 38, 95%, 50%;  /* Changed to bright yellow */
+    --accent-pink: 0, 85%, 55%;     /* Changed to bright red */
     
-    --primary-glow: 0 0 20px rgba(139, 92, 246, 0.25);
+    --primary-glow: 0 0 20px rgba(37, 99, 235, 0.2);
     --glass-blur: blur(16px);
 }
 
@@ -92,14 +92,14 @@ aside.sidebar {
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);
+    box-shadow: 0 4px 15px rgba(37, 99, 235, 0.4);
 }
 
 .logo-text {
     font-size: 1.25rem;
     font-weight: 800;
     letter-spacing: -0.5px;
-    background: linear-gradient(to right, #fff, #a78bfa);
+    background: linear-gradient(to right, #fff, #60a5fa);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
 }
@@ -136,7 +136,7 @@ aside.sidebar {
 
 .nav-item.active button {
     color: var(--text-primary);
-    background: rgba(139, 92, 246, 0.15);
+    background: rgba(37, 99, 235, 0.15);
     border-left: 3px solid hsl(var(--accent-purple));
     padding-left: calc(1rem - 3px);
 }
@@ -215,7 +215,7 @@ header.header {
 }
 
 .btn-primary {
-    background: linear-gradient(135deg, hsl(var(--accent-purple)) 0%, #7c3aed 100%);
+    background: linear-gradient(135deg, hsl(var(--accent-purple)) 0%, #1d4ed8 100%);
     color: white;
     border: none;
     padding: 0.75rem 1.5rem;
@@ -226,12 +226,12 @@ header.header {
     align-items: center;
     gap: 0.5rem;
     transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(124, 58, 237, 0.3);
+    box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
 }
 
 .btn-primary:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(124, 58, 237, 0.5);
+    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.5);
 }
 
 .btn-secondary {
@@ -593,7 +593,7 @@ header.header {
 
 .badge-item.unlocked {
     opacity: 1;
-    border-color: rgba(139, 92, 246, 0.3);
+    border-color: rgba(37, 99, 235, 0.3);
     box-shadow: var(--primary-glow);
 }
 
@@ -610,8 +610,8 @@ header.header {
 }
 
 .badge-item.unlocked .badge-icon {
-    background: linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(236, 72, 153, 0.2) 100%);
-    color: #e879f9;
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.2) 0%, rgba(0, 240, 255, 0.2) 100%);
+    color: #00f0ff;
 }
 
 .badge-item.unlocked:hover .badge-icon {
@@ -823,4 +823,10 @@ header.header {
     .nav-item button {
         white-space: nowrap;
     }
+}
+
+@keyframes pulse {
+    0% { opacity: 0.6; }
+    50% { opacity: 1; }
+    100% { opacity: 0.6; }
 }

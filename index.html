@@ -181,8 +181,8 @@
                                         stroke-dasharray="364.4" stroke-dashoffset="364.4" stroke-linecap="round" style="transition: stroke-dashoffset 0.5s ease;"/>
                                 <defs>
                                     <linearGradient id="progress-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                                        <stop offset="0%" stop-color="#8b5cf6" />
-                                        <stop offset="100%" stop-color="#ec4899" />
+                                        <stop offset="0%" stop-color="#2563eb" />
+                                        <stop offset="100%" stop-color="#00f0ff" />
                                     </linearGradient>
                                 </defs>
                             </svg>
@@ -248,14 +248,47 @@
                     </div>
                 </div>
 
-                <div class="form-group" style="flex-direction: row; align-items: center; gap: 0.75rem; margin-top: 1rem; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 1rem;">
-                    <input type="checkbox" id="gps-track-toggle" onchange="toggleGpsInput(this.checked)" style="width: 18px; height: 18px; cursor: pointer; accent-color: hsl(var(--accent-purple));">
-                    <label class="form-label" for="gps-track-toggle" style="cursor: pointer; margin-bottom: 0;">Auto-Track GPS Distance</label>
+                <div class="form-group" style="border-top: 1px solid rgba(255,255,255,0.06); padding-top: 1rem; margin-top: 1rem;">
+                    <label class="form-label" for="habit-tracking-type">Tracking Method</label>
+                    <select class="form-input" id="habit-tracking-type" onchange="handleTrackingTypeChange(this.value)" style="background-color: #1a162e; color: white; cursor: pointer;">
+                        <option value="manual">Manual Check-in</option>
+                        <option value="gps">GPS Distance (Walking/Running)</option>
+                        <option value="sleep">Sleep Tracker (Stopwatch)</option>
+                        <option value="focus">Focus Timer (Pomodoro)</option>
+                        <option value="counter">Quick Log Counter (Water, Reps, etc.)</option>
+                    </select>
                 </div>
 
-                <div class="form-group" id="gps-distance-group" style="display: none;">
-                    <label class="form-label" for="gps-target-distance">Target Distance (km)</label>
-                    <input class="form-input" type="number" id="gps-target-distance" step="0.01" min="0.01" value="1.00" placeholder="e.g., 5.00">
+                <!-- GPS Input -->
+                <div class="form-group tracking-details-group" id="group-gps" style="display: none;">
+                    <label class="form-label" for="input-target-gps">Target Distance (km)</label>
+                    <input class="form-input" type="number" id="input-target-gps" step="0.1" min="0.1" value="5.0">
+                </div>
+
+                <!-- Sleep Input -->
+                <div class="form-group tracking-details-group" id="group-sleep" style="display: none;">
+                    <label class="form-label" for="input-target-sleep">Target Sleep (Hours)</label>
+                    <input class="form-input" type="number" id="input-target-sleep" step="0.5" min="1" value="8.0">
+                </div>
+
+                <!-- Focus Input -->
+                <div class="form-group tracking-details-group" id="group-focus" style="display: none;">
+                    <label class="form-label" for="input-target-focus">Target Focus Time (Minutes)</label>
+                    <input class="form-input" type="number" id="input-target-focus" step="1" min="1" value="25">
+                </div>
+
+                <!-- Counter Input -->
+                <div class="form-group tracking-details-group" id="group-counter" style="display: none;">
+                    <div style="display: flex; gap: 1rem;">
+                        <div style="flex: 1;">
+                            <label class="form-label" for="input-target-counter">Goal Target (Counts)</label>
+                            <input class="form-input" type="number" id="input-target-counter" step="1" min="1" value="8">
+                        </div>
+                        <div style="flex: 1;">
+                            <label class="form-label" for="input-unit-counter">Unit Name</label>
+                            <input class="form-input" type="text" id="input-unit-counter" value="glasses" placeholder="e.g. glasses, reps">
+                        </div>
+                    </div>
                 </div>
 
                 <div class="modal-actions">

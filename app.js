@@ -314,20 +314,88 @@ function renderHabitsList() {
             `;
         });
         
-        let gpsHtml = '';
-        if (habit.gps) {
-            const todayStr = new Date().toISOString().split('T')[0];
+        const todayStr = new Date().toISOString().split('T')[0];
+        let trackerWidgetHtml = '';
+        
+        const type = habit.trackingType || (habit.gps ? 'gps' : 'manual');
+        const target = habit.targetVal || habit.gpsDistance || 0;
+        
+        if (type === 'gps') {
             const currentDist = (habit.history_gps_distance && habit.history_gps_distance[todayStr]) || 0;
-            const pct = Math.min(Math.round((currentDist / habit.gpsDistance) * 100), 100);
+            const pct = Math.min(Math.round((currentDist / target) * 100), 100);
             
-            gpsHtml = `
-                <div class="gps-progress-section" style="margin-top: 0.25rem; margin-bottom: 0.25rem;">
-                    <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 4px;">
-                        <span><i data-lucide="navigation" style="width: 12px; height: 12px; display: inline-block; vertical-align: middle; margin-right: 4px; color: #10b981;"></i> GPS Auto-Tracking</span>
-                        <span style="font-weight: 600;">${currentDist.toFixed(2)} / ${habit.gpsDistance.toFixed(2)} km (${pct}%)</span>
+            trackerWidgetHtml = `
+                <div class="tracker-widget" style="margin-top: 0.25rem; margin-bottom: 0.25rem; background: rgba(255,255,255,0.02); padding: 0.75rem; border-radius: 10px; border: 1px solid rgba(255,255,255,0.04);">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 6px;">
+                        <span><i data-lucide="navigation" style="width: 12px; height: 12px; display: inline-block; vertical-align: middle; margin-right: 4px; color: #10b981;"></i> GPS Tracking</span>
+                        <span style="font-weight: 600;">${currentDist.toFixed(2)} / ${target.toFixed(2)} km (${pct}%)</span>
                     </div>
-                    <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.03); border-radius: 3px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05);">
+                    <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.03); border-radius: 3px; overflow: hidden;">
                         <div style="width: ${pct}%; height: 100%; background: linear-gradient(to right, #10b981, #00f0ff); border-radius: 3px; transition: width 0.3s ease;"></div>
+                    </div>
+                </div>
+            `;
+        } else if (type === 'sleep') {
+            const progress = (habit.dailyProgress && habit.dailyProgress[todayStr]) || 0;
+            const isSleeping = !!habit.sleepStart;
+            
+            let sleepStatus = '';
+            let btnLabel = '';
+            let btnColor = '';
+            let iconName = '';
+            
+            if (isSleeping) {
+                sleepStatus = `<span style="color: #60a5fa; font-weight: 600; font-size: 0.8rem; animation: pulse 1.5s infinite;">Ticking: sleeping...</span>`;
+                btnLabel = 'Wake Up';
+                btnColor = 'rgba(239, 68, 68, 0.15)';
+                iconName = 'sun';
+            } else {
+                sleepStatus = `<span style="font-size: 0.8rem; color: var(--text-secondary);">Logged Today: <strong>${progress}h</strong> / ${target}h</span>`;
+                btnLabel = 'Start Sleep';
+                btnColor = 'rgba(139, 92, 246, 0.15)';
+                iconName = 'moon';
+            }
+            
+            trackerWidgetHtml = `
+                <div class="tracker-widget" style="margin-top: 0.25rem; margin-bottom: 0.25rem; display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.02); padding: 0.75rem; border-radius: 10px; border: 1px solid rgba(255,255,255,0.04);">
+                    <div style="display: flex; flex-direction: column; gap: 2px;">
+                        <span style="font-size: 0.75rem; color: var(--text-muted); display: flex; align-items: center; gap: 4px;"><i data-lucide="moon" style="width: 12px;"></i> Sleep Monitor</span>
+                        ${sleepStatus}
+                    </div>
+                    <button class="btn" onclick="${isSleeping ? `stopSleep('${habit.id}')` : `startSleep('${habit.id}')`}" style="width: auto; padding: 0.5rem 1rem; font-size: 0.75rem; background: ${btnColor}; color: white; border: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; gap: 6px;">
+                        <i data-lucide="${iconName}" style="width: 14px; height: 14px;"></i> ${btnLabel}
+                    </button>
+                </div>
+            `;
+        } else if (type === 'focus') {
+            const isTimerRunning = !!habit.focusActive;
+            const remaining = habit.focusRemaining !== undefined ? habit.focusRemaining : target * 60;
+            const mins = Math.floor(remaining / 60).toString().padStart(2, '0');
+            const secs = (remaining % 60).toString().padStart(2, '0');
+            
+            trackerWidgetHtml = `
+                <div class="tracker-widget" style="margin-top: 0.25rem; margin-bottom: 0.25rem; display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.02); padding: 0.75rem; border-radius: 10px; border: 1px solid rgba(255,255,255,0.04);">
+                    <div style="display: flex; flex-direction: column; gap: 2px;">
+                        <span style="font-size: 0.75rem; color: var(--text-muted); display: flex; align-items: center; gap: 4px;"><i data-lucide="hourglass" style="width: 12px;"></i> Focus Timer</span>
+                        <span id="timer-display-${habit.id}" style="font-weight: 700; font-size: 1.1rem; color: #ec4899; text-shadow: 0 0 10px rgba(236,72,153,0.3);">${mins}:${secs}</span>
+                    </div>
+                    <button class="btn" onclick="toggleFocus('${habit.id}')" style="width: auto; padding: 0.5rem 1rem; font-size: 0.75rem; background: rgba(236,72,153,0.15); color: white; border: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; gap: 6px;">
+                        <i data-lucide="${isTimerRunning ? 'pause' : 'play'}" style="width: 14px; height: 14px;"></i> ${isTimerRunning ? 'Pause' : 'Start'}
+                    </button>
+                </div>
+            `;
+        } else if (type === 'counter') {
+            const progress = (habit.dailyProgress && habit.dailyProgress[todayStr]) || 0;
+            
+            trackerWidgetHtml = `
+                <div class="tracker-widget" style="margin-top: 0.25rem; margin-bottom: 0.25rem; display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.02); padding: 0.75rem; border-radius: 10px; border: 1px solid rgba(255,255,255,0.04);">
+                    <div style="display: flex; flex-direction: column; gap: 2px;">
+                        <span style="font-size: 0.75rem; color: var(--text-muted); display: flex; align-items: center; gap: 4px;"><i data-lucide="hash" style="width: 12px;"></i> Quick Logger</span>
+                        <span style="font-size: 0.8rem; color: var(--text-secondary);">Logged Today: <strong style="color: #60a5fa;">${progress}</strong> / ${target} ${habit.unit || 'counts'}</span>
+                    </div>
+                    <div style="display: flex; gap: 6px;">
+                        <button class="btn" onclick="adjustCounter('${habit.id}', -1)" style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.05); color: white; font-weight: bold; border-radius: 8px;">-</button>
+                        <button class="btn" onclick="adjustCounter('${habit.id}', 1)" style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; background: rgba(96, 165, 250, 0.15); border: 1px solid rgba(255,255,255,0.05); color: white; font-weight: bold; border-radius: 8px;">+</button>
                     </div>
                 </div>
             `;
@@ -354,7 +422,7 @@ function renderHabitsList() {
                 </div>
             </div>
             
-            ${gpsHtml}
+            ${trackerWidgetHtml}
             
             <div class="habit-weekly-grid">
                 ${daysHtml}
@@ -420,10 +488,16 @@ function openAddHabitModal() {
     state.selectedCategory = 'Health';
     state.selectedColor = '260, 85%, 65%';
     
-    // Reset GPS defaults
-    document.getElementById('gps-track-toggle').checked = false;
-    document.getElementById('gps-distance-group').style.display = 'none';
-    document.getElementById('gps-target-distance').value = "1.00";
+    // Reset tracking type select
+    document.getElementById('habit-tracking-type').value = 'manual';
+    handleTrackingTypeChange('manual');
+    
+    // Reset inputs
+    document.getElementById('input-target-gps').value = '5.0';
+    document.getElementById('input-target-sleep').value = '8.0';
+    document.getElementById('input-target-focus').value = '25';
+    document.getElementById('input-target-counter').value = '8';
+    document.getElementById('input-unit-counter').value = 'glasses';
     
     updateCategorySelectors();
     updateThemeSelectors();
@@ -442,11 +516,21 @@ function openEditHabitModal(habitId) {
     state.selectedCategory = habit.category;
     state.selectedColor = habit.color;
     
-    // Set GPS values
-    const isGps = !!habit.gps;
-    document.getElementById('gps-track-toggle').checked = isGps;
-    document.getElementById('gps-distance-group').style.display = isGps ? 'flex' : 'none';
-    document.getElementById('gps-target-distance').value = habit.gpsDistance || "1.00";
+    // Set tracking type values
+    const trackingType = habit.trackingType || 'manual';
+    document.getElementById('habit-tracking-type').value = trackingType;
+    handleTrackingTypeChange(trackingType);
+    
+    if (trackingType === 'gps') {
+        document.getElementById('input-target-gps').value = habit.targetVal || '5.0';
+    } else if (trackingType === 'sleep') {
+        document.getElementById('input-target-sleep').value = habit.targetVal || '8.0';
+    } else if (trackingType === 'focus') {
+        document.getElementById('input-target-focus').value = habit.targetVal || '25';
+    } else if (trackingType === 'counter') {
+        document.getElementById('input-target-counter').value = habit.targetVal || '8';
+        document.getElementById('input-unit-counter').value = habit.unit || 'glasses';
+    }
     
     updateCategorySelectors();
     updateThemeSelectors();
@@ -499,10 +583,23 @@ function saveHabit(e) {
     
     const habitId = document.getElementById('edit-habit-id').value;
     const name = document.getElementById('habit-name').value.trim();
-    const gpsEnabled = document.getElementById('gps-track-toggle').checked;
-    const gpsDistanceVal = parseFloat(document.getElementById('gps-target-distance').value) || 1.00;
     
     if (!name) return;
+    
+    const trackingType = document.getElementById('habit-tracking-type').value;
+    let targetVal = 0;
+    let unit = '';
+    
+    if (trackingType === 'gps') {
+        targetVal = parseFloat(document.getElementById('input-target-gps').value) || 5.0;
+    } else if (trackingType === 'sleep') {
+        targetVal = parseFloat(document.getElementById('input-target-sleep').value) || 8.0;
+    } else if (trackingType === 'focus') {
+        targetVal = parseFloat(document.getElementById('input-target-focus').value) || 25;
+    } else if (trackingType === 'counter') {
+        targetVal = parseInt(document.getElementById('input-target-counter').value) || 8;
+        unit = document.getElementById('input-unit-counter').value.trim() || 'glasses';
+    }
     
     if (habitId) {
         // Edit mode
@@ -511,8 +608,13 @@ function saveHabit(e) {
             habit.name = name;
             habit.category = state.selectedCategory;
             habit.color = state.selectedColor;
-            habit.gps = gpsEnabled;
-            habit.gpsDistance = gpsDistanceVal;
+            habit.trackingType = trackingType;
+            habit.targetVal = targetVal;
+            habit.unit = unit;
+            
+            // Backwards compatibility legacy fields
+            habit.gps = trackingType === 'gps';
+            habit.gpsDistance = trackingType === 'gps' ? targetVal : 0;
         }
     } else {
         // Add Mode
@@ -521,9 +623,15 @@ function saveHabit(e) {
             name: name,
             category: state.selectedCategory,
             color: state.selectedColor,
-            gps: gpsEnabled,
-            gpsDistance: gpsDistanceVal,
+            trackingType: trackingType,
+            targetVal: targetVal,
+            unit: unit,
             history: {},
+            dailyProgress: {},
+            
+            // Backwards compatibility legacy fields
+            gps: trackingType === 'gps',
+            gpsDistance: trackingType === 'gps' ? targetVal : 0,
             history_gps_distance: {}
         };
         state.habits.push(newHabit);
@@ -751,10 +859,140 @@ function updateGpsHabitsDistance(distanceKm) {
     }
 }
 
-function toggleGpsInput(checked) {
-    const distGroup = document.getElementById('gps-distance-group');
-    if (distGroup) {
-        distGroup.style.display = checked ? 'flex' : 'none';
+function handleTrackingTypeChange(val) {
+    document.querySelectorAll('.tracking-details-group').forEach(g => g.style.display = 'none');
+    if (val !== 'manual') {
+        const targetGroup = document.getElementById(`group-${val}`);
+        if (targetGroup) targetGroup.style.display = 'flex';
     }
 }
+
+// Global 1-second Interval for active timers
+let globalTimerInterval = setInterval(() => {
+    let updatedAny = false;
+    const todayStr = new Date().toISOString().split('T')[0];
+    
+    state.habits.forEach(habit => {
+        // Focus countdown logic
+        if (habit.trackingType === 'focus' && habit.focusActive) {
+            if (habit.focusRemaining > 0) {
+                habit.focusRemaining--;
+                updatedAny = true;
+                
+                if (habit.focusRemaining === 0) {
+                    habit.focusActive = false;
+                    habit.history[todayStr] = true;
+                    
+                    const sound = document.getElementById('completion-sound');
+                    if (sound) {
+                        sound.currentTime = 0;
+                        sound.play().catch(() => {});
+                    }
+                }
+            }
+        }
+    });
+    
+    if (updatedAny) {
+        // Render only the time updates in card DOM to prevent layout stutter
+        state.habits.forEach(h => {
+            if (h.trackingType === 'focus' && h.focusActive) {
+                const timerElem = document.getElementById(`timer-display-${h.id}`);
+                if (timerElem) {
+                    const mins = Math.floor(h.focusRemaining / 60).toString().padStart(2, '0');
+                    const secs = (h.focusRemaining % 60).toString().padStart(2, '0');
+                    timerElem.innerText = `${mins}:${secs}`;
+                }
+            }
+        });
+    }
+}, 1000);
+
+// Sleep Track Handlers
+function startSleep(habitId) {
+    const habit = state.habits.find(h => h.id === habitId);
+    if (!habit) return;
+    
+    habit.sleepStart = Date.now();
+    saveToLocalStorage();
+    render();
+}
+
+function stopSleep(habitId) {
+    const habit = state.habits.find(h => h.id === habitId);
+    if (!habit || !habit.sleepStart) return;
+    
+    const elapsedMs = Date.now() - habit.sleepStart;
+    const elapsedHours = parseFloat((elapsedMs / (1000 * 60 * 60)).toFixed(2));
+    
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (!habit.dailyProgress) habit.dailyProgress = {};
+    
+    const currentProgress = habit.dailyProgress[todayStr] || 0;
+    const newProgress = parseFloat((currentProgress + elapsedHours).toFixed(2));
+    habit.dailyProgress[todayStr] = newProgress;
+    habit.sleepStart = null; // reset
+    
+    if (newProgress >= habit.targetVal) {
+        habit.history[todayStr] = true;
+        const sound = document.getElementById('completion-sound');
+        if (sound) {
+            sound.currentTime = 0;
+            sound.play().catch(() => {});
+        }
+    }
+    
+    saveToLocalStorage();
+    render();
+}
+
+// Focus Timer Toggle
+function toggleFocus(habitId) {
+    const habit = state.habits.find(h => h.id === habitId);
+    if (!habit) return;
+    
+    if (!habit.focusActive) {
+        // Start or resume
+        habit.focusActive = true;
+        if (habit.focusRemaining === undefined || habit.focusRemaining <= 0) {
+            habit.focusRemaining = habit.targetVal * 60;
+        }
+    } else {
+        // Pause
+        habit.focusActive = false;
+    }
+    
+    saveToLocalStorage();
+    render();
+}
+
+// Quick Log Counter Handler
+function adjustCounter(habitId, delta) {
+    const habit = state.habits.find(h => h.id === habitId);
+    if (!habit) return;
+    
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (!habit.dailyProgress) habit.dailyProgress = {};
+    
+    const current = habit.dailyProgress[todayStr] || 0;
+    const updated = Math.max(0, current + delta);
+    habit.dailyProgress[todayStr] = updated;
+    
+    // Auto check-in if target reached
+    if (updated >= habit.targetVal && !habit.history[todayStr]) {
+        habit.history[todayStr] = true;
+        const sound = document.getElementById('completion-sound');
+        if (sound) {
+            sound.currentTime = 0;
+            sound.play().catch(() => {});
+        }
+    } else if (updated < habit.targetVal && habit.history[todayStr]) {
+        // Uncheck if reduced below target
+        habit.history[todayStr] = false;
+    }
+    
+    saveToLocalStorage();
+    render();
+}
+
 
