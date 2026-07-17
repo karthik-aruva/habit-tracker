@@ -67,6 +67,12 @@
                     <p id="greeting-subtitle">Your habits shape your future. Let's make today count.</p>
                 </div>
                 <div class="header-actions">
+                    <button class="btn-secondary" onclick="generateDemoData()" title="Generate 30-day demo history">
+                        <i data-lucide="database" style="width: 16px; height: 16px; display: inline; vertical-align: middle; margin-right: 4px;"></i> Demo Data
+                    </button>
+                    <button class="btn-secondary" id="sound-toggle" onclick="toggleMute()" title="Toggle sound effects" style="padding: 0.85rem 1rem; display: flex; align-items: center; justify-content: center;">
+                        <i id="sound-toggle-icon" data-lucide="volume-2" style="width: 16px; height: 16px;"></i>
+                    </button>
                     <button class="btn-secondary" onclick="exportData()" title="Backup habits data">
                         <i data-lucide="download" style="width: 16px; height: 16px; display: inline; vertical-align: middle; margin-right: 4px;"></i> Export
                     </button>
@@ -301,6 +307,18 @@
 
     <!-- Sound Element for Satisfying Auditory feedback -->
     <audio id="completion-sound" src="https://assets.mixkit.co/active_storage/sfx/2013/2013-84.wav" preload="auto"></audio>
+
+    <!-- Toast Container -->
+    <div id="toast-container"></div>
+
+    <!-- Floating Timer Widget -->
+    <div id="floating-timer-widget" onclick="switchTab('dashboard')">
+        <div class="floating-timer-glow"></div>
+        <div class="floating-timer-inner">
+            <i data-lucide="hourglass" class="timer-rotating-icon"></i>
+            <span id="floating-timer-time">00:00</span>
+        </div>
+    </div>
 
     <script src="app.js"></script>
 </body>

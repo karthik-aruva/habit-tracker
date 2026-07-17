@@ -906,3 +906,161 @@ header.header {
     opacity: 1;
     transform: translateY(0);
 }
+
+/* Toast Notifications Container & Items */
+#toast-container {
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    z-index: 10000;
+    pointer-events: none;
+}
+
+.toast-notification {
+    pointer-events: auto;
+    min-width: 300px;
+    max-width: 400px;
+    background: rgba(10, 10, 22, 0.9);
+    background-image: var(--glass-reflection);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--card-border);
+    border-left: 4px solid hsl(var(--accent-purple));
+    border-radius: 16px;
+    padding: 1rem 1.25rem;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4), var(--primary-glow);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    transform: translateX(120%);
+    animation: toastIn 0.35s cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
+    transition: all 0.35s ease;
+}
+
+.toast-notification.hide {
+    animation: toastOut 0.35s cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
+}
+
+.toast-icon {
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.toast-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+}
+
+.toast-title {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: #ffffff;
+}
+
+.toast-description {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.toast-close {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+}
+
+.toast-close:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+/* Floating Focus Timer Widget */
+#floating-timer-widget {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: rgba(10, 10, 22, 0.85);
+    background-image: var(--glass-reflection);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid rgba(236, 72, 153, 0.25);
+    box-shadow: 0 10px 30px rgba(236, 72, 153, 0.15), inset 0 1px 0 rgba(255,255,255,0.05);
+    border-radius: 20px;
+    padding: 0.75rem 1.25rem;
+    z-index: 9999;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    animation: bounceIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+#floating-timer-widget:hover {
+    transform: translateY(-4px) scale(1.05);
+    border-color: rgba(236, 72, 153, 0.5);
+    box-shadow: 0 15px 35px rgba(236, 72, 153, 0.3);
+}
+
+.floating-timer-glow {
+    position: absolute;
+    inset: -1px;
+    background: linear-gradient(135deg, #ec4899, #8b5cf6);
+    border-radius: 20px;
+    z-index: -1;
+    opacity: 0.2;
+    filter: blur(8px);
+    animation: pulse 2s infinite alternate;
+}
+
+.floating-timer-inner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.timer-rotating-icon {
+    color: #ec4899;
+    animation: rotateSpinner 2.5s linear infinite;
+    width: 16px;
+    height: 16px;
+}
+
+#floating-timer-time {
+    font-family: 'Inter', monospace;
+    font-weight: 700;
+    font-size: 1rem;
+    color: #ffffff;
+    letter-spacing: 0.5px;
+}
+
+@keyframes toastIn {
+    to { transform: translateX(0); }
+}
+
+@keyframes toastOut {
+    to { transform: translateX(120%); opacity: 0; }
+}
+
+@keyframes rotateSpinner {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+@keyframes bounceIn {
+    from { transform: scale(0.3); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}

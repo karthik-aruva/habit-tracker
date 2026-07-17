@@ -26,17 +26,55 @@ let state = {
     currentTab: 'dashboard'
 };
 
+// Sound & Badge State
+let isMuted = localStorage.getItem('aurahabit_muted') === 'true';
+let unlockedBadges = JSON.parse(localStorage.getItem('aurahabit_unlocked_badges')) || [];
+
+function playCompletionSound() {
+    if (isMuted) return;
+    const sound = document.getElementById('completion-sound');
+    if (sound) {
+        sound.currentTime = 0;
+        sound.play().catch(err => console.log('Audio playback context needs interaction first.'));
+    }
+}
+
+function updateSoundToggleIcon() {
+    const icon = document.getElementById('sound-toggle-icon');
+    if (icon) {
+        icon.setAttribute('data-lucide', isMuted ? 'volume-x' : 'volume-2');
+        if (window.lucide) {
+            window.lucide.createIcons();
+        }
+    }
+}
+
+function toggleMute() {
+    isMuted = !isMuted;
+    localStorage.setItem('aurahabit_muted', isMuted.toString());
+    updateSoundToggleIcon();
+    showToast('🔊 Sound Settings', isMuted ? 'Sound effects muted' : 'Sound effects enabled', '📢');
+}
+
+function initUnlockedBadgesBaseline() {
+    const metrics = getMetrics();
+    badgeDefinitions.forEach(badge => {
+        if (badge.check(metrics) && !unlockedBadges.includes(badge.id)) {
+            unlockedBadges.push(badge.id);
+        }
+    });
+    localStorage.setItem('aurahabit_unlocked_badges', JSON.stringify(unlockedBadges));
+}
+
 // Initialize App
 window.addEventListener('DOMContentLoaded', () => {
     loadData();
     displayQuote();
     switchTab('dashboard');
-    
-    // Refresh date headings
     updateGreetings();
-    
-    // Start Geolocation Background Tracking
     initGpsTracking();
+    updateSoundToggleIcon();
+    initUnlockedBadgesBaseline();
 });
 
 // Switch Dashboard tabs
@@ -67,6 +105,8 @@ function switchTab(tabId) {
     } else if (tabId === 'badges') {
         renderBadges();
     }
+    
+    updateFloatingTimerWidget();
 }
 
 // Display Random Quote
@@ -244,6 +284,9 @@ function getMetrics() {
 function render() {
     renderHabitsList();
     renderStats();
+    
+    // Check for newly unlocked badges/milestones
+    checkNewBadgesUnlocked();
     
     // Re-trigger Lucide icons parsing
     if (window.lucide) {
@@ -464,11 +507,7 @@ function toggleHabitDay(e, habitId, dateString) {
             createParticleBurst(e.clientX, e.clientY, habit.color);
         }
         
-        const sound = document.getElementById('completion-sound');
-        if (sound) {
-            sound.currentTime = 0;
-            sound.play().catch(err => console.log('Audio playback context needs interaction first.'));
-        }
+        playCompletionSound();
     }
     
     saveToLocalStorage();
@@ -847,11 +886,7 @@ function updateGpsHabitsDistance(distanceKm) {
                 habit.history[todayStr] = true;
                 
                 // Play completion sound
-                const sound = document.getElementById('completion-sound');
-                if (sound) {
-                    sound.currentTime = 0;
-                    sound.play().catch(err => {});
-                }
+                playCompletionSound();
             }
             updatedAny = true;
         }
@@ -886,12 +921,7 @@ let globalTimerInterval = setInterval(() => {
                 if (habit.focusRemaining === 0) {
                     habit.focusActive = false;
                     habit.history[todayStr] = true;
-                    
-                    const sound = document.getElementById('completion-sound');
-                    if (sound) {
-                        sound.currentTime = 0;
-                        sound.play().catch(() => {});
-                    }
+                    playCompletionSound();
                 }
             }
         }
@@ -910,6 +940,9 @@ let globalTimerInterval = setInterval(() => {
             }
         });
     }
+
+    // Always update the floating timer widget countdown/visibility status
+    updateFloatingTimerWidget();
 }, 1000);
 
 // Sleep Track Handlers
@@ -939,11 +972,7 @@ function stopSleep(habitId) {
     
     if (newProgress >= habit.targetVal) {
         habit.history[todayStr] = true;
-        const sound = document.getElementById('completion-sound');
-        if (sound) {
-            sound.currentTime = 0;
-            sound.play().catch(() => {});
-        }
+        playCompletionSound();
     }
     
     saveToLocalStorage();
@@ -985,11 +1014,7 @@ function adjustCounter(habitId, delta) {
     // Auto check-in if target reached
     if (updated >= habit.targetVal && !habit.history[todayStr]) {
         habit.history[todayStr] = true;
-        const sound = document.getElementById('completion-sound');
-        if (sound) {
-            sound.currentTime = 0;
-            sound.play().catch(() => {});
-        }
+        playCompletionSound();
     } else if (updated < habit.targetVal && habit.history[todayStr]) {
         // Uncheck if reduced below target
         habit.history[todayStr] = false;
@@ -1102,11 +1127,7 @@ function accumulateAutomaticSleep(hours) {
             const target = habit.targetVal || 8.0;
             if (updated >= target && !habit.history[todayStr]) {
                 habit.history[todayStr] = true;
-                const sound = document.getElementById('completion-sound');
-                if (sound) {
-                    sound.currentTime = 0;
-                    sound.play().catch(() => {});
-                }
+                playCompletionSound();
             }
             updatedAny = true;
         }
@@ -1115,6 +1136,153 @@ function accumulateAutomaticSleep(hours) {
     if (updatedAny) {
         saveToLocalStorage();
         render();
+    }
+}
+
+// Toast Notifications System
+function showToast(title, description, icon = '✨') {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+
+    const toast = document.createElement('div');
+    toast.className = 'toast-notification';
+    
+    toast.innerHTML = `
+        <div class="toast-icon">${icon}</div>
+        <div class="toast-content">
+            <span class="toast-title">${title}</span>
+            <span class="toast-description">${description}</span>
+        </div>
+        <button class="toast-close">
+            <i data-lucide="x" style="width: 14px; height: 14px;"></i>
+        </button>
+    `;
+
+    container.appendChild(toast);
+    
+    if (window.lucide) {
+        window.lucide.createIcons();
+    }
+
+    // Close button event
+    const closeBtn = toast.querySelector('.toast-close');
+    closeBtn.addEventListener('click', () => {
+        toast.classList.add('hide');
+        setTimeout(() => toast.remove(), 350);
+    });
+
+    // Auto dismiss after 4 seconds
+    setTimeout(() => {
+        if (toast.parentNode) {
+            toast.classList.add('hide');
+            setTimeout(() => toast.remove(), 350);
+        }
+    }, 4000);
+}
+
+// Milestone Unlock Toast Detector
+function checkNewBadgesUnlocked() {
+    const metrics = getMetrics();
+    let newlyUnlocked = [];
+    
+    badgeDefinitions.forEach(badge => {
+        const isCurrentlyUnlocked = badge.check(metrics);
+        if (isCurrentlyUnlocked && !unlockedBadges.includes(badge.id)) {
+            newlyUnlocked.push(badge);
+            unlockedBadges.push(badge.id);
+        }
+    });
+
+    if (newlyUnlocked.length > 0) {
+        localStorage.setItem('aurahabit_unlocked_badges', JSON.stringify(unlockedBadges));
+        newlyUnlocked.forEach(badge => {
+            showToast(`🏆 Milestone Unlocked!`, `You earned the "${badge.name}" badge: ${badge.desc}`, badge.icon);
+            playCompletionSound();
+        });
+    }
+}
+
+// Demo Data Generator
+function generateDemoData() {
+    if (state.habits.length === 0) {
+        showToast('⚠️ No Habits', 'Please add at least one habit first before generating demo history.', '❌');
+        return;
+    }
+
+    const today = new Date();
+    state.habits.forEach(habit => {
+        // Clear existing history
+        habit.history = {};
+        habit.dailyProgress = {};
+        
+        const type = habit.trackingType || 'manual';
+        const target = habit.targetVal || 5.0;
+
+        // Generate history for the past 30 days
+        for (let i = 29; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(today.getDate() - i);
+            const dateStr = d.toISOString().split('T')[0];
+
+            // Randomly complete (e.g. 70% chance of completion)
+            const completed = Math.random() < 0.7;
+            if (completed) {
+                habit.history[dateStr] = true;
+                
+                // If it's a progress tracking habit, populate some progress
+                if (type === 'gps') {
+                    if (!habit.history_gps_distance) habit.history_gps_distance = {};
+                    habit.history_gps_distance[dateStr] = parseFloat((target * (0.8 + Math.random() * 0.4)).toFixed(2));
+                } else if (type === 'sleep' || type === 'focus' || type === 'counter') {
+                    if (!habit.dailyProgress) habit.dailyProgress = {};
+                    habit.dailyProgress[dateStr] = parseFloat((target * (0.8 + Math.random() * 0.4)).toFixed(2));
+                }
+            } else {
+                habit.history[dateStr] = false;
+                if (type === 'gps') {
+                    if (!habit.history_gps_distance) habit.history_gps_distance = {};
+                    habit.history_gps_distance[dateStr] = parseFloat((target * 0.3 * Math.random()).toFixed(2));
+                } else if (type === 'sleep' || type === 'focus' || type === 'counter') {
+                    if (!habit.dailyProgress) habit.dailyProgress = {};
+                    habit.dailyProgress[dateStr] = parseFloat((target * 0.3 * Math.random()).toFixed(2));
+                }
+            }
+        }
+    });
+
+    saveToLocalStorage();
+    
+    // Reset baseline badges so new ones are processed correctly
+    unlockedBadges = [];
+    initUnlockedBadgesBaseline();
+    
+    render();
+    
+    if (state.currentTab === 'analytics') renderAnalytics();
+    if (state.currentTab === 'badges') renderBadges();
+    
+    showToast('📊 Demo Data Generated', '30 days of completion history populated successfully!', '🚀');
+}
+
+// Floating Focus Timer Widget update visibility & display
+function updateFloatingTimerWidget() {
+    const widget = document.getElementById('floating-timer-widget');
+    if (!widget) return;
+
+    // Find first active focus habit
+    const activeFocusHabit = state.habits.find(h => h.trackingType === 'focus' && h.focusActive);
+    
+    if (activeFocusHabit && state.currentTab !== 'dashboard') {
+        widget.style.display = 'flex';
+        
+        const remaining = activeFocusHabit.focusRemaining !== undefined ? activeFocusHabit.focusRemaining : activeFocusHabit.targetVal * 60;
+        const mins = Math.floor(remaining / 60).toString().padStart(2, '0');
+        const secs = (remaining % 60).toString().padStart(2, '0');
+        
+        const timeDisplay = document.getElementById('floating-timer-time');
+        if (timeDisplay) timeDisplay.innerText = `${mins}:${secs}`;
+    } else {
+        widget.style.display = 'none';
     }
 }
 
